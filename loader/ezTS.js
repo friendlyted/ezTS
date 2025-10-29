@@ -267,14 +267,26 @@ class ezTS {
         aDayLater.setDate(aDayLater.getDate() + 1);
         const expireDate = aDayLater.toISOString().substring(0, 10);
 
-        let jsCode = await this.#cache.get(codeHash, expireDate,
+        const output = await this.#cache.get(codeHash, expireDate,
             async () => await this.#compileTs(targetFileName, tsCodeWithAbsoluteImports)
         );
 
-        const codeBytes = new Uint8Array(ezTS.ENCODER.encode(jsCode));
-        const base64Code = btoa(String.fromCharCode.apply(null, codeBytes));
+        const delimiter = "//# sourceMappingURL=data:application/json;base64,";
+        const [jsCode, sourceMapBase64] = output.split(delimiter)
 
-        this.#imports[targetFileName] = 'data:application/javascript;base64,' + base64Code;
+        const sourceMapBytes = atob(sourceMapBase64);
+        const sourceMap = JSON.parse(sourceMapBytes);
+        sourceMap.file = "";
+        sourceMap.sourceRoot = "";
+        sourceMap.sources = [targetFileName];
+
+        const content = [jsCode, btoa(JSON.stringify(sourceMap))].join(delimiter);
+
+        const jsBlob = new Blob([content], {type: 'application/javascript'});
+        const jsUrl = URL.createObjectURL(jsBlob);
+
+        this.#imports[targetFileName] = jsUrl;
+
         await this.#loadImports(targetFileName, jsCode);
     }
 
