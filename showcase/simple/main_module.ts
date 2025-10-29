@@ -1,6 +1,9 @@
 import {doubleIt} from "./another_module.ts";
 
 export function main() {
-    const result = doubleIt(123);
-    alert(result)
+    const src = 123;
+    const result = doubleIt(src);
+    const text = document.createElement("h3");
+    text.textContent = `The result of doubling ${src} is ${result}`;
+    document.body.appendChild(text)
 }
