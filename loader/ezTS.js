@@ -319,7 +319,12 @@ class ezTS {
     }
 
     static async import(params) {
-        const pathToCaller = ezTS$Path.relativePath(ezTS$Path.folderOf(document.currentScript.src), ezTS$Path.folderOf(window.location.href));
+        let pathToCaller;
+        if (document.currentScript !== null) {
+            pathToCaller = ezTS$Path.relativePath(ezTS$Path.folderOf(document.currentScript.src), ezTS$Path.folderOf(window.location.href));
+        } else {
+            pathToCaller = ezTS$Path.folderOf(document.location.href);
+        }
         // const pathToCaller = ezTS$Path.relativePath(ezTS$Path.folderOf(import.meta.url), ezTS$Path.folderOf(window.location.href));
 
         const loader = new ezTS(params);
