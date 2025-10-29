@@ -1,0 +1,6 @@
+// required by IDEA
+{
+  "compilerOptions": {
+    "allowImportingTsExtensions": true
+  }
+}
