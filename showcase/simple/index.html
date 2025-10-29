@@ -8,14 +8,7 @@
         <div id="app"></div>
         <script type="text/javascript" src="../../loader/ezTS.js"></script>
         <script type="text/javascript">
-            (async () => {
-                let [fnc] = await ezTS.import({
-                    tsUrl: "https://cdn.jsdelivr.net/npm/typescript@5.9.3/lib/typescript.min.js",
-                    modules: ["./my_function2.ts"]
-                });
-                let result = await fnc.myFunction2(123);
-                alert(result)
-            })();
+            ezTS_main = "./main_module.ts";
         </script>
     </body>
 </html>
