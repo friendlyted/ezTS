@@ -212,7 +212,10 @@ class ezTS$Cache {
 }
 
 class ezTS {
-    static encoder = new TextEncoder();
+    static MAIN_FN_NAME = "ezTS_main";
+    static READY_FN_NAME = "ezTS_ready";
+    static DEFAULT_TS_URL = "https://cdn.jsdelivr.net/npm/typescript@5.9.3/lib/typescript.min.js";
+    static ENCODER = new TextEncoder();
 
     #tsUrl;
     #modules;
@@ -268,8 +271,7 @@ class ezTS {
             async () => await this.#compileTs(targetFileName, tsCodeWithAbsoluteImports)
         );
 
-
-        const codeBytes = new Uint8Array(ezTS.encoder.encode(jsCode));
+        const codeBytes = new Uint8Array(ezTS.ENCODER.encode(jsCode));
         const base64Code = btoa(String.fromCharCode.apply(null, codeBytes));
 
         this.#imports[targetFileName] = 'data:application/javascript;base64,' + base64Code;
@@ -318,6 +320,15 @@ class ezTS {
         }).outputText;
     }
 
+    static ready() {
+        if (typeof window !== "undefined") {
+            const readyCallback = window[ezTS.READY_FN_NAME];
+            if (typeof readyCallback === "function") {
+                readyCallback();
+            }
+        }
+    }
+
     static async import(params) {
         let pathToCaller;
         if (document.currentScript !== null) {
@@ -325,20 +336,14 @@ class ezTS {
         } else {
             pathToCaller = ezTS$Path.folderOf(document.location.href);
         }
-        // const pathToCaller = ezTS$Path.relativePath(ezTS$Path.folderOf(import.meta.url), ezTS$Path.folderOf(window.location.href));
 
-        const loader = new ezTS(params);
+        const ez = new ezTS(params);
+        await ez.loadAndCompile();
+        await ez.fixImportMap();
 
-        await loader.loadAndCompile();
-        await loader.fixImportMap();
+        ezTS.ready();
 
-        if (typeof window !== "undefined") {
-            if (typeof window["ezTS_ready"] === "function") {
-                window["ezTS_ready"]();
-            }
-        }
-
-        return await loader.import(pathToCaller);
+        return await ez.import(pathToCaller);
     }
 
     static async fetchFile(file) {
@@ -353,19 +358,23 @@ class ezTS {
         let currentLocation = ezTS$Path.folderOf(targetFile);
         return src.replaceAll(/^(^\s*(?:import|export).*from\s+["'])(\.[^"']+\.[tj]s)/gm, "$1" + currentLocation + "$2");
     }
-}
 
-if (typeof window !== "undefined" && typeof document !== "undefined") {
-    document.addEventListener("DOMContentLoaded", () => {
-        const mainModule = window["ezTS_main"];
+    static easyStart() {
+        const mainModule = window[ezTS.MAIN_FN_NAME];
         if (typeof mainModule !== "undefined") {
             (async () => {
                 let [module] = await ezTS.import({
-                    tsUrl: "https://cdn.jsdelivr.net/npm/typescript@5.9.3/lib/typescript.min.js",
+                    tsUrl: ezTS.DEFAULT_TS_URL,
                     modules: [mainModule]
                 });
                 module.main();
             })();
         }
+    }
+}
+
+if (typeof window !== "undefined" && typeof document !== "undefined") {
+    document.addEventListener("DOMContentLoaded", () => {
+        ezTS.easyStart();
     })
 }
