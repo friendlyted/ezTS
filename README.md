@@ -22,8 +22,10 @@ All the code is in the project, except for the TypeScript compiler itself.
 ### No module scripts in the html
 
 `ezTS` uses browser `importmap` functionality to replace actual server-side `.ts` files with compiled `.js` ones.
-However, changing the `importmap` is prohibited after any ESM module has been loaded.
+But changing the `importmap` is prohibited after any ESM module has been loaded.
 This means that `script type="module"` and `ezTS` will not work together.
+However, if you create a global function named `ezTS_ready`, it will be called immediately after changing
+the `importmap`. You can dynamically import everything you need in this function.
 
 ### No dynamic TS imports
 

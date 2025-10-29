@@ -332,6 +332,12 @@ class ezTS {
         await loader.loadAndCompile();
         await loader.fixImportMap();
 
+        if (typeof window !== "undefined") {
+            if (typeof window["ezTS_ready"] === "function") {
+                window["ezTS_ready"]();
+            }
+        }
+
         return await loader.import(pathToCaller);
     }
 
