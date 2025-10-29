@@ -348,3 +348,18 @@ class ezTS {
         return src.replaceAll(/^(^\s*(?:import|export).*from\s+["'])(\.[^"']+\.[tj]s)/gm, "$1" + currentLocation + "$2");
     }
 }
+
+if (typeof window !== "undefined" && typeof document !== "undefined") {
+    document.addEventListener("DOMContentLoaded", () => {
+        const mainModule = window["ezTS_main"];
+        if (typeof mainModule !== "undefined") {
+            (async () => {
+                let [module] = await ezTS.import({
+                    tsUrl: "https://cdn.jsdelivr.net/npm/typescript@5.9.3/lib/typescript.min.js",
+                    modules: [mainModule]
+                });
+                module.main();
+            })();
+        }
+    })
+}
