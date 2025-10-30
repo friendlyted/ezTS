@@ -223,6 +223,7 @@ class ezTS$Cache {
 class ezTS {
     static MAIN_FN_NAME = "ezTS_main";
     static READY_FN_NAME = "ezTS_ready";
+    static WAIT_FOR_DEBUGGER = "ezTS_wait_for_debugger";
     static DEFAULT_TS_URL = "https://cdn.jsdelivr.net/npm/typescript@5.9.3/lib/typescript.min.js";
     static ENCODER = new TextEncoder();
 
@@ -240,7 +241,7 @@ class ezTS {
     async import(...modules) {
         return await Promise.all(modules.map(async (mod) => {
             const realUrl = await this.#loadAndCompileTS(mod);
-            return await import(realUrl);
+            return import(realUrl);
         }));
     }
 
@@ -331,13 +332,6 @@ class ezTS {
     }
 
     static async import(params) {
-        let pathToCaller;
-        if (document.currentScript !== null) {
-            pathToCaller = ezTS$Path.relativePath(ezTS$Path.folderOf(document.currentScript.src), ezTS$Path.folderOf(window.location.href));
-        } else {
-            pathToCaller = ezTS$Path.folderOf(document.location.href);
-        }
-
         const ez = new ezTS(params.tsUrl);
         return await ez.import(...params.modules);
     }
@@ -363,6 +357,11 @@ class ezTS {
                     tsUrl: ezTS.DEFAULT_TS_URL,
                     modules: [mainModule]
                 });
+
+                if(window[ezTS.WAIT_FOR_DEBUGGER] === true){
+                    // wait while debugger is attaching breakpoints
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
                 module.main();
             })();
         }
