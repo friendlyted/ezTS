@@ -229,47 +229,29 @@ class ezTS {
     #tsUrl;
     #modules;
     #cache;
-    #imports = {};
+    #importMap = {};
 
-    constructor(params) {
-        this.#tsUrl = params.tsUrl;
-        this.#modules = params.modules;
+    constructor(tsUrl) {
+        this.#tsUrl = tsUrl;
         this.#cache = new ezTS$Cache();
         this.#cache.setEnabled(false)
     }
 
-    async loadAndCompile() {
-        await Promise.all(this.#modules.map(mod => this.#loadAndCompileTS(mod)));
-    }
-
-    async import(currentLocation = "./") {
-        return await Promise.all(this.#modules.map(mod => import(currentLocation + mod)));
-    }
-
-    // importmap is cached, we need to recreate the whole script element
-    async fixImportMap() {
-        let oldScript = document.head.querySelector("script[type='importmap']");
-        if (oldScript) document.head.removeChild(oldScript);
-
-        let imports = JSON.parse(oldScript?.textContent || "{}")?.imports || {};
-        Object.assign(imports, this.#imports);
-
-        let newScript = document.createElement("script");
-        newScript.type = "importmap";
-        newScript.textContent = JSON.stringify({imports}, null, "\t");
-        document.head.appendChild(newScript);
-        await new Promise(r => setTimeout(r, 100));
+    async import(...modules) {
+        return await Promise.all(modules.map(async (mod) => {
+            const realUrl = await this.#loadAndCompileTS(mod);
+            return await import(realUrl);
+        }));
     }
 
     async #loadAndCompileTS(tsFileName) {
-        let urlFile = ezTS$Path.relativeFile(window.location.href, tsFileName);
-        let targetFileName = ezTS$Path.reducePath(urlFile);
+        const urlFile = ezTS$Path.relativeFile(window.location.href, tsFileName);
+        const targetFileName = ezTS$Path.reducePath(urlFile);
 
-        if (this.#imports[targetFileName]) return;
-        this.#imports[targetFileName] = "TMP_MOCK";
+        const tsCode = await ezTS.fetchFile(targetFileName);
+        const tsCodeWithRealImports = await this.#loadImports(targetFileName, tsCode);
 
-        let tsCode = await ezTS.fetchFile(targetFileName);
-        let tsCodeWithAbsoluteImports = ezTS.replaceRelativeImports(targetFileName, tsCode);
+        const tsCodeWithAbsoluteImports = ezTS.replaceRelativeImports(targetFileName, tsCodeWithRealImports);
 
         const codeHash = ezTS$Hash.hash(tsCodeWithAbsoluteImports);
 
@@ -277,24 +259,33 @@ class ezTS {
         aDayLater.setDate(aDayLater.getDate() + 1);
         const expireDate = aDayLater.toISOString().substring(0, 10);
 
-        let jsCode = await this.#cache.get(codeHash, expireDate,
+        const jsCode = await this.#cache.get(codeHash, expireDate,
             async () => await this.#compileTs(targetFileName, tsCodeWithAbsoluteImports)
         );
 
-        const codeBytes = new Uint8Array(ezTS.ENCODER.encode(jsCode));
-        const base64Code = btoa(String.fromCharCode.apply(null, codeBytes));
-
-        this.#imports[targetFileName] = 'data:application/javascript;base64,' + base64Code;
-        await this.#loadImports(targetFileName, jsCode);
+        const jsBlob = new Blob([jsCode], {type: "application/javascript"});
+        return URL.createObjectURL(jsBlob);
     }
 
-    async #loadImports(tsFileName, jsCode) {
-        let imports = jsCode.matchAll(/^(^\s*(?:import|export).*from\s+["'])([^"']+\.ts)/gm);
+    async #loadImports(tsFileName, tsCode) {
+        const importsMatches = tsCode.matchAll(/^(^\s*(?:import|export).*from\s+["'])([^"']+\.ts)(["'])/gm);
+        const imports = [...importsMatches].reverse();
+
+        let result = tsCode;
+
         for (let imp of imports) {
-            let name = imp[2];
-            let targetFileName = ezTS$Path.relativeFile(tsFileName, name);
-            await this.#loadAndCompileTS(targetFileName);
+            const name = imp[2];
+            const targetFileName = ezTS$Path.reducePath(ezTS$Path.relativeFile(tsFileName, name));
+            let realUrl;
+            if (this.#importMap[targetFileName]) {
+                realUrl = this.#importMap[targetFileName];
+            } else {
+                realUrl = await this.#loadAndCompileTS(targetFileName);
+                this.#importMap[targetFileName] = realUrl
+            }
+            result = result.substring(0, imp.index) + imp[1] + realUrl + imp[3] + result.substring(imp.index + imp[0].length);
         }
+        return result;
     }
 
     #prepareTypeScriptCompiler() {
@@ -347,13 +338,8 @@ class ezTS {
             pathToCaller = ezTS$Path.folderOf(document.location.href);
         }
 
-        const ez = new ezTS(params);
-        await ez.loadAndCompile();
-        await ez.fixImportMap();
-
-        ezTS.ready();
-
-        return await ez.import(pathToCaller);
+        const ez = new ezTS(params.tsUrl);
+        return await ez.import(...params.modules);
     }
 
     static async fetchFile(file) {
