@@ -130,12 +130,17 @@ class ezTS$Cache {
      * References to a cache storage, basically a browser local storage.
      */
     #storage;
+    #enabled = true;
 
     constructor(storage = localStorage) {
         if (storage === null || storage === undefined || !(typeof storage === "object")) {
             throw new Error("Invalid storage provided.");
         }
         this.#storage = storage;
+    }
+
+    setEnabled(value) {
+        this.#enabled = value;
     }
 
     /**
@@ -145,12 +150,16 @@ class ezTS$Cache {
      * @returns cached or newly calculated value
      */
     async get(key, expireDate, asyncValueProvider) {
-        let cachedValue = this.#storage.getItem(key);
-        if (ezTS$Cache.#isValidEntry(cachedValue)) {
-            return cachedValue.substring(ezTS$Cache.DATE_LENGTH);
+        if (this.#enabled) {
+            let cachedValue = this.#storage.getItem(key);
+            if (ezTS$Cache.#isValidEntry(cachedValue)) {
+                return cachedValue.substring(ezTS$Cache.DATE_LENGTH);
+            }
         }
         let value = await asyncValueProvider();
-        this.#updateValue(key, expireDate, value);
+        if (this.#enabled) {
+            this.#updateValue(key, expireDate, value);
+        }
         return value;
     }
 
@@ -226,6 +235,7 @@ class ezTS {
         this.#tsUrl = params.tsUrl;
         this.#modules = params.modules;
         this.#cache = new ezTS$Cache();
+        this.#cache.setEnabled(false)
     }
 
     async loadAndCompile() {
