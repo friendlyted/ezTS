@@ -15,19 +15,17 @@ You can directly use the `ezTS` class to load the necessary TypeScript modules, 
 global variable named `ezTS_main`, which specifies the name of the main TypeScript module file.
 This will automatically call its main() method.
 
+### Debugger
+
+TS sources are available for debugging, but they loaded so quickly that the browser debugger may not have time to set
+breakpoints, so a pause may be required before executing the TS code itself. To do this, you can set the 
+variable `ezTS_wait_for_debugger = true`.
+
 ### Zero Dependency
 
 All the code is in the project, except for the TypeScript compiler itself.
 
-### No module scripts in the html
-
-`ezTS` uses browser `importmap` functionality to replace actual server-side `.ts` files with compiled `.js` ones.
-But changing the `importmap` is prohibited after any ESM module has been loaded.
-This means that `script type="module"` and `ezTS` will not work together.
-However, if you create a global function named `ezTS_ready`, it will be called immediately after changing
-the `importmap`. You can dynamically import everything you need in this function.
-
-### No dynamic TS imports
+### Dynamic TS imports not supported
 
 During compilation, TS source files are checked for dependencies at the beginning of the file, and if so, they are also
 loaded and compiled. However, if a dynamic import statement is present, the loader will not be able to load the
