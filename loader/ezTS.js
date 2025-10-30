@@ -130,12 +130,17 @@ class ezTS$Cache {
      * References to a cache storage, basically a browser local storage.
      */
     #storage;
+    #enabled = true;
 
     constructor(storage = localStorage) {
         if (storage === null || storage === undefined || !(typeof storage === "object")) {
             throw new Error("Invalid storage provided.");
         }
         this.#storage = storage;
+    }
+
+    setEnabled(value) {
+        this.#enabled = value;
     }
 
     /**
@@ -145,12 +150,16 @@ class ezTS$Cache {
      * @returns cached or newly calculated value
      */
     async get(key, expireDate, asyncValueProvider) {
-        let cachedValue = this.#storage.getItem(key);
-        if (ezTS$Cache.#isValidEntry(cachedValue)) {
-            return cachedValue.substring(ezTS$Cache.DATE_LENGTH);
+        if (this.#enabled) {
+            let cachedValue = this.#storage.getItem(key);
+            if (ezTS$Cache.#isValidEntry(cachedValue)) {
+                return cachedValue.substring(ezTS$Cache.DATE_LENGTH);
+            }
         }
         let value = await asyncValueProvider();
-        this.#updateValue(key, expireDate, value);
+        if (this.#enabled) {
+            this.#updateValue(key, expireDate, value);
+        }
         return value;
     }
 
@@ -226,6 +235,7 @@ class ezTS {
         this.#tsUrl = params.tsUrl;
         this.#modules = params.modules;
         this.#cache = new ezTS$Cache();
+        this.#cache.setEnabled(false)
     }
 
     async loadAndCompile() {
@@ -274,16 +284,10 @@ class ezTS {
         const delimiter = "//# sourceMappingURL=data:application/json;base64,";
         const [jsCode, sourceMapBase64] = output.split(delimiter)
 
-        const sourceMapBytes = atob(sourceMapBase64);
-        const sourceMap = JSON.parse(sourceMapBytes);
-        sourceMap.file = "";
-        sourceMap.sourceRoot = "";
-        sourceMap.sources = [targetFileName];
 
-        const content = [jsCode, btoa(JSON.stringify(sourceMap))].join(delimiter);
+        const content = [jsCode, sourceMapBase64].join(delimiter);
 
-        const jsBlob = new Blob([content], {type: 'application/javascript'});
-        const jsUrl = URL.createObjectURL(jsBlob);
+        const jsUrl = "data:application/javascript;base64," + btoa(content);
 
         this.#imports[targetFileName] = jsUrl;
 
@@ -325,7 +329,7 @@ class ezTS {
 
                 sourceMap: true,
                 inlineSourceMap: true,
-                inlineSources: true,
+                // inlineSources: true,
                 sourceRoot: ezTS$Path.folderOf(name),
             },
             fileName: name
