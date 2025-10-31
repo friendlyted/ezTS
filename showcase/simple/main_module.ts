@@ -3,7 +3,7 @@ import {doubleIt} from "./double_module.ts";
 export async function main() {
     const src = 123;
     const doubleResult = doubleIt(src);
-    const triple = await ezTS.importSingle("./triple_module.ts");
+    const triple = await import("./triple_module.ts");
     const tripleResult = triple.tripleIt(src);
 
     const text1 = document.createElement("h3");

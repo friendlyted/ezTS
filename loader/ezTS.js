@@ -283,7 +283,7 @@ class ezTS {
     }
 
     async #loadImports(tsFileName, tsCode) {
-        return await ezTS.#smartReplace(
+        const tsCodeWithFixedStaticImports = await ezTS.#smartReplace(
             tsCode,
             /^(^\s*(?:import|export).*from\s+["'])([^"']+\.ts)(["'])/gm,
             async imp => {
@@ -298,6 +298,11 @@ class ezTS {
                 }
                 return imp[1] + realUrl + imp[3]
             })
+
+        const tsCodeWithFixedDynamicImports = tsCodeWithFixedStaticImports
+            .replaceAll(/ import\(/gm, " ezTS.importSingle(")
+
+        return tsCodeWithFixedDynamicImports;
     }
 
     #prepareTypeScriptCompiler() {
@@ -375,7 +380,7 @@ class ezTS {
         if (typeof mainModule !== "undefined") {
             (async () => {
                 let [module] = await ezTS.import({
-                    tsUrl: ezTS.LOCAL_TS_URL,
+                    tsUrl: ezTS.DEFAULT_TS_URL,
                     modules: [mainModule]
                 });
 
