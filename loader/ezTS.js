@@ -236,7 +236,7 @@ class ezTS {
     constructor(tsUrl) {
         this.#tsUrl = tsUrl;
         this.#cache = new ezTS$Cache();
-        this.#cache.setEnabled(false)
+        // this.#cache.setEnabled(false)
     }
 
     async import(...modules) {
