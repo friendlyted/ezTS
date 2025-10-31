@@ -1,6 +1,7 @@
 // required by IDEA
 {
   "compilerOptions": {
-    "allowImportingTsExtensions": true
+    "allowImportingTsExtensions": true,
+    "lib": ["ES2015", "dom"]
   }
 }

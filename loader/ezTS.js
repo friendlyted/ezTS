@@ -225,12 +225,13 @@ class ezTS {
     static READY_FN_NAME = "ezTS_ready";
     static WAIT_FOR_DEBUGGER = "ezTS_wait_for_debugger";
     static DEFAULT_TS_URL = "https://cdn.jsdelivr.net/npm/typescript@5.9.3/lib/typescript.min.js";
+    static LOCAL_TS_URL = "../../lib/typescript-5.8.3.min.js";
     static ENCODER = new TextEncoder();
 
     #tsUrl;
-    #modules;
     #cache;
     #importMap = {};
+    static #instance;
 
     constructor(tsUrl) {
         this.#tsUrl = tsUrl;
@@ -241,7 +242,7 @@ class ezTS {
     async import(...modules) {
         return await Promise.all(modules.map(async (mod) => {
             const realUrl = await this.#loadAndCompileTS(mod);
-            return import(realUrl);
+            return await import(realUrl);
         }));
     }
 
@@ -331,9 +332,19 @@ class ezTS {
         }
     }
 
+    static async importSingle(name) {
+        if (!ezTS.#instance) {
+            throw new Error("ezTS is not initialized")
+        }
+        const modules = await ezTS.#instance.import(name);
+        return modules[0];
+    }
+
     static async import(params) {
-        const ez = new ezTS(params.tsUrl);
-        return await ez.import(...params.modules);
+        if (!ezTS.#instance) {
+            ezTS.#instance = new ezTS(params.tsUrl);
+        }
+        return await ezTS.#instance.import(...params.modules);
     }
 
     static async fetchFile(file) {
@@ -354,13 +365,13 @@ class ezTS {
         if (typeof mainModule !== "undefined") {
             (async () => {
                 let [module] = await ezTS.import({
-                    tsUrl: ezTS.DEFAULT_TS_URL,
+                    tsUrl: ezTS.LOCAL_TS_URL,
                     modules: [mainModule]
                 });
 
-                if(window[ezTS.WAIT_FOR_DEBUGGER] === true){
+                if (window[ezTS.WAIT_FOR_DEBUGGER] === true) {
                     // wait while debugger is attaching breakpoints
-                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    await new Promise(resolve => setTimeout(resolve, 300));
                 }
                 module.main();
             })();

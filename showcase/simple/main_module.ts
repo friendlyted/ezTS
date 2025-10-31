@@ -1,9 +1,9 @@
 import {doubleIt} from "./double_module.ts";
-import * as triple from "./triple_module.ts";
 
-export function main() {
+export async function main() {
     const src = 123;
     const doubleResult = doubleIt(src);
+    const triple = await ezTS.importSingle("./triple_module.ts");
     const tripleResult = triple.tripleIt(src);
 
     const text1 = document.createElement("h3");
