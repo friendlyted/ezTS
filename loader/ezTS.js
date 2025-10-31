@@ -269,25 +269,35 @@ class ezTS {
         return URL.createObjectURL(jsBlob);
     }
 
-    async #loadImports(tsFileName, tsCode) {
-        const importsMatches = tsCode.matchAll(/^(^\s*(?:import|export).*from\s+["'])([^"']+\.ts)(["'])/gm);
-        const imports = [...importsMatches].reverse();
+    static async #smartReplace(src, regex, callback) {
+        const matches = src.matchAll(regex);
+        const imports = [...matches].reverse();
 
-        let result = tsCode;
+        let result = src;
 
         for (let imp of imports) {
-            const name = imp[2];
-            const targetFileName = ezTS$Path.reducePath(ezTS$Path.relativeFile(tsFileName, name));
-            let realUrl;
-            if (this.#importMap[targetFileName]) {
-                realUrl = this.#importMap[targetFileName];
-            } else {
-                realUrl = await this.#loadAndCompileTS(targetFileName);
-                this.#importMap[targetFileName] = realUrl
-            }
-            result = result.substring(0, imp.index) + imp[1] + realUrl + imp[3] + result.substring(imp.index + imp[0].length);
+            const replaceValue = await callback(imp);
+            result = result.substring(0, imp.index) + replaceValue + result.substring(imp.index + imp[0].length);
         }
         return result;
+    }
+
+    async #loadImports(tsFileName, tsCode) {
+        return await ezTS.#smartReplace(
+            tsCode,
+            /^(^\s*(?:import|export).*from\s+["'])([^"']+\.ts)(["'])/gm,
+            async imp => {
+                const name = imp[2];
+                const targetFileName = ezTS$Path.reducePath(ezTS$Path.relativeFile(tsFileName, name));
+                let realUrl;
+                if (this.#importMap[targetFileName]) {
+                    realUrl = this.#importMap[targetFileName];
+                } else {
+                    realUrl = await this.#loadAndCompileTS(targetFileName);
+                    this.#importMap[targetFileName] = realUrl
+                }
+                return imp[1] + realUrl + imp[3]
+            })
     }
 
     #prepareTypeScriptCompiler() {
