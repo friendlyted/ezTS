@@ -251,11 +251,11 @@ class ezTS {
         const targetFileName = ezTS$Path.reducePath(urlFile);
 
         const tsCode = await ezTS.fetchFile(targetFileName);
+        const codeHash = ezTS$Hash.hash(tsCode);
+
         const tsCodeWithRealImports = await this.#loadImports(targetFileName, tsCode);
 
         const tsCodeWithAbsoluteImports = ezTS.replaceRelativeImports(targetFileName, tsCodeWithRealImports);
-
-        const codeHash = ezTS$Hash.hash(tsCodeWithAbsoluteImports);
 
         const aDayLater = new Date();
         aDayLater.setDate(aDayLater.getDate() + 1);
