@@ -300,7 +300,7 @@ class ezTS {
             })
 
         const tsCodeWithFixedDynamicImports = tsCodeWithFixedStaticImports
-            .replaceAll(/ import\(/gm, " ezTS.importSingle(")
+            .replaceAll(/(\s)import(\s*)\(/gm, "$1ezTS.importSingle$2(")
 
         return tsCodeWithFixedDynamicImports;
     }

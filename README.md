@@ -25,6 +25,49 @@ variable `ezTS_wait_for_debugger = true` (or `window["ezTS_wait_for_debugger"] =
 
 All the code is in the project, except for the TypeScript compiler itself.
 
+## Usage
+
+- ### EntryPoint using JS module
+```html
+<body>
+    <script type="text/javascript" src="https://friendlyted.github.io/ezTS/loader/ezTS.js"></script>
+    <script type="module">
+        window["ezTS_main"] = "./my_ts_module.ts";
+        window["ezTS_wait_for_debugger"] = true;
+    </script>
+</body>
+```
+
+- ### EntryPoint using plain JS
+```html
+<body>
+    <script type="text/javascript" src="https://friendlyted.github.io/ezTS/loader/ezTS.js"></script>
+    <script type="text/javascript">
+        ezTS_main = "./my_ts_module.ts";
+        ezTS_wait_for_debugger = true;
+    </script>
+</body>
+```
+- ### Using explicitly ezTS class
+```html
+<body>
+    <script type="text/javascript" src="https://friendlyted.github.io/ezTS/loader/ezTS.js"></script>
+    <script type="text/javascript">
+        (async () => {
+            let [loadedTsModule] = await ezTS.import({
+                tsUrl: "https://cdn.jsdelivr.net/npm/typescript@5.9.3/lib/typescript.min.js",
+                modules: ["./my_ts_module.ts"]
+            });
+            
+            // maybe your debugger wants to take a rest
+            // await new Promise(resolve => setTimeout(resolve, 300));
+            loadedTsModule.myTsFunction();
+        })();
+    </script>
+</body>
+```
+
+
 ## Showcase
 
 You can try https://friendlyted.github.io/ezTS/showcase/simple/index.html to see how it works.
