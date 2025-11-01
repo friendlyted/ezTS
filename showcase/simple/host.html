@@ -9,39 +9,57 @@
         <h1>TypeScript Compiler in Browser</h1>
         <label>
             Enter main module URL:
-            <input id="urlInput" type="text" value="http://localhost:63342/ezTS/showcase/simple/main_module.ts" style="width: 400px;">
+            <input id="urlInput" type="text" value="http://localhost:63342/ezTS/showcase/simple/main_module.ts"
+                   style="width: 400px;">
         </label>
         <button id="compileBtn">Compile</button>
-        <pre id="output" style="margin-top: 20px; border: 1px solid #ccc; padding: 10px; height: 400px; overflow: auto;"></pre>
+        <pre id="output"
+             style="margin-top: 20px; border: 1px solid #ccc; padding: 10px; height: 400px; overflow: auto;"></pre>
 
         <script>
-            // Загрузка файла по URL
-            function loadFileSync(url) {
-                const request = new XMLHttpRequest();
-                request.open("GET", url, false); // `false` makes the request synchronous
-                request.send(null);
+            const files = {};
 
-                if (request.status === 200) {
-                    console.log(request.responseText);
-                    return request.responseText;
-                }
-            }
-
-            function createSourceFileSafely(fileName, content) {
+            async function collectDependencies(url) {
+                const source = await (await fetch(url)).text();
                 const sourceFile = ts.createSourceFile(
-                    fileName,
-                    content,
+                    url,
+                    source,
                     ts.ScriptTarget.Latest,
-                    true, // setParentNodes — важно!
-                    ts.ScriptKind.TS
+                    true
                 );
 
-                return sourceFile;
+                files[url] = sourceFile;
+
+                const imports = [];
+
+                ts.forEachChild(sourceFile, node => {
+                    if (ts.isImportDeclaration(node)) {
+                        const importPath = node.moduleSpecifier.text;
+                        const resolvedUrl = resolveUrl(importPath, url);
+                        imports.push(resolvedUrl);
+                    }
+                });
+
+                const dynamicImports = source.matchAll(/(\s+import\s*\(\s*["'])([^"']*)(["']\s*\))/gs);
+                for (let imp of dynamicImports) {
+                    const resolvedUrl = resolveUrl(imp[2], url);
+                    imports.push(resolvedUrl);
+                }
+
+                for (const importUrl of imports) {
+                    await collectDependencies(importUrl);
+                }
+
+            }
+
+            function resolveUrl(importPath, baseUrl) {
+                const base = new URL(baseUrl);
+                const resolved = new URL(importPath, base);
+                return resolved.href;
             }
 
             // Компиляция всех файлов в один вывод
             async function compileAll(mainModule) {
-
                 const compilerOptions = {
                     target: ts.ScriptTarget.ES2017,
                     module: ts.ModuleKind.ES2017,
@@ -59,9 +77,7 @@
                 const host = {
                     getSourceFile: (fileName) => {
                         try {
-                            const content = loadFileSync(fileName);
-                            let sourceFileSafely = createSourceFileSafely(fileName, content);
-                            return sourceFileSafely;
+                            return files[fileName];
                         } catch (err) {
                             console.error(`Failed to load ${fileName}:`, err);
                             return undefined;
@@ -76,14 +92,13 @@
                     },
                     getDirectories: () => [],
                     fileExists: (fileName) => true,
-                    readFile: async (fileName) => {
-                        return await loadFileSync(fileName)
+                    readFile: (fileName) => {
+                        throw new Error("asdasd");
                     },
                     getCanonicalFileName: (fileName) => fileName,
                     useCaseSensitiveFileNames: () => true,
                     getNewLine: () => "\n"
                 };
-
 
 
                 const program = ts.createProgram([mainModule], compilerOptions, host);
@@ -94,7 +109,7 @@
                     output.textContent += "\nCompilation errors:\n";
                     diagnostics.forEach(diagnostic => {
                         if (diagnostic.file) {
-                            const { line, character } = diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start);
+                            const {line, character} = diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start);
                             const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n");
                             output.textContent += `(line ${line + 1}, col ${character + 1}): ${message}\n`;
                         } else {
@@ -121,6 +136,7 @@
                 output.textContent = `Loading ${mainUrl}...\n`;
 
                 try {
+                    await collectDependencies(mainUrl);
                     await compileAll(mainUrl);
                 } catch (err) {
                     output.textContent += `Error: ${err.message}\n`;
