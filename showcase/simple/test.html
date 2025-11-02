@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>TS Compiler in Browser</title>
+    </head>
+    <body>
+        <script type="module">
+            import ezTS from "../../loader/ezTS2.js";
+
+            (async () => {
+                const output = await ezTS.compile(ezTS.resolveUrl(window.location.href, "./main_module.ts"));
+                return output;
+            })();
+        </script>
+    </body>
+</html>
