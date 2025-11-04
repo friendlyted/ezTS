@@ -11,7 +11,7 @@ function ts() {
 // noinspection DuplicatedCode
 class CustomTsHost {
     tsSourceFiles;
-    jsOutput = {};
+    jsOutput = new Map();
 
     constructor(tsSourceFiles) {
         this.tsSourceFiles = tsSourceFiles;
@@ -31,7 +31,7 @@ class CustomTsHost {
     }
 
     writeFile(name, text) {
-        this.jsOutput[name] = text;
+        this.jsOutput.set(name, text);
     }
 
     getCurrentDirectory() {
@@ -90,12 +90,12 @@ class TsModule {
             if (ts()) resolve(ts());
             else {
                 fetch(TsModule.DEFAULT_TS_URL)
-                    .then(resp=>resp.text())
-                    .then(text=>{
+                    .then(resp => resp.text())
+                    .then(text => {
                         const gEval = eval; // I'm too lazy to make it properly for now
                         gEval(text);
                     })
-                    .then(()=>{
+                    .then(() => {
                         resolve(ts())
                     })
 
@@ -152,8 +152,17 @@ export class ezTS {
 
     static async compile(entryPointUrl) {
         const tsSourceFiles = await ezTS.findRecursiveImports(entryPointUrl);
-        const tsSources = await this.#createTsSources(tsSourceFiles);
-        const output = await TsModule.compileSources(entryPointUrl, tsSources);
+        const tsSources = await ezTS.#createTsSources(tsSourceFiles);
+        const compilerOutput = await TsModule.compileSources(entryPointUrl, tsSources);
+        const jsOutput = ezTS.#replaceJsExt(compilerOutput);
+        return jsOutput;
+    }
+
+    static #replaceJsExt(filesMap) {
+        const output = {};
+        filesMap.entries().forEach(([k, v]) => {
+            output[k] = v.replaceAll(/((?:import|export).*)\.ts(['"])/g, "$1.js$2");
+        })
         return output;
     }
 
