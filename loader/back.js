@@ -1,5 +1,5 @@
 import {SwBackend} from "https://friendlyted.github.io/swFn/swBackend.js";
-import {ezTS} from "./ezTS2.js";
+import {ezTS} from "./ezTS.js";
 
 new SwBackend(self)
     .attach()
