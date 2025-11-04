@@ -1,3 +1,13 @@
+function global() {
+    if (typeof window !== "undefined") return window;
+    if (typeof self !== "undefined") return self;
+    throw new Error("There is no known global object");
+}
+
+function ts() {
+    return global()["ts"];
+}
+
 // noinspection DuplicatedCode
 class CustomTsHost {
     tsSourceFiles;
@@ -25,7 +35,7 @@ class CustomTsHost {
     }
 
     getCurrentDirectory() {
-        return window.location.href;
+        return global().location.href;
     }
 
     getDirectories() {
@@ -77,13 +87,18 @@ class TsModule {
 
     static async #prepareTypeScriptCompiler() {
         return new Promise((resolve) => {
-            if (window["ts"]) resolve(ts);
+            if (ts()) resolve(ts());
             else {
-                let script = document.createElement("script");
-                script.setAttribute("type", "application/javascript");
-                script.setAttribute("src", TsModule.DEFAULT_TS_URL);
-                script.onload = () => resolve(ts);
-                document.body.appendChild(script);
+                fetch(TsModule.DEFAULT_TS_URL)
+                    .then(resp=>resp.text())
+                    .then(text=>{
+                        const gEval = eval; // I'm too lazy to make it properly for now
+                        gEval(text);
+                    })
+                    .then(()=>{
+                        resolve(ts())
+                    })
+
             }
         })
     }
@@ -133,7 +148,7 @@ class TsModule {
     }
 }
 
-export default class ezTS {
+export class ezTS {
 
     static async compile(entryPointUrl) {
         const tsSourceFiles = await ezTS.findRecursiveImports(entryPointUrl);
@@ -156,12 +171,10 @@ export default class ezTS {
         return resolved.href;
     }
 
-
     static async loadFile(url) {
         const file = await fetch(url);
         return await file.text()
     }
-
 
     static async findRecursiveImports(url, importsCollector = new Map()) {
         if (importsCollector.has(url)) return importsCollector;
