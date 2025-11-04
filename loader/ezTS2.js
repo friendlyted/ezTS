@@ -159,10 +159,11 @@ export class ezTS {
     }
 
     static #replaceJsExt(filesMap) {
-        const output = {};
-        filesMap.entries().forEach(([k, v]) => {
-            output[k] = v.replaceAll(/((?:import|export).*)\.ts(['"])/g, "$1.js$2");
-        })
+        const output = new Map();
+        filesMap.forEach((src, name) => {
+            const fixed = src.replaceAll(/((?:import|export).*)\.ts(['"])/g, "$1.js$2");
+            output.set(name, fixed);
+        });
         return output;
     }
 
