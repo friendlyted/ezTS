@@ -12,7 +12,7 @@
 
             const sw = await installSW("./service-worker.js");
 
-            const jsSources = await new TsWebCompiler().compileTs("./ts/main_module.ts");
+            const jsSources = await new TsWebCompiler("./web-worker.js").compileTs("./ts/main_module.ts");
             sw.active.postMessage(jsSources);
             await new Promise(ok => setTimeout(ok(), 100));
             const mainModule = await import("./ts/main_module.js");
