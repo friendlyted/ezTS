@@ -43,7 +43,7 @@ class CustomTsHost {
     }
 
     fileExists(fileName) {
-        return true
+        return fileName.indexOf("/node_modules/") === -1
     }
 
     readFile(fileName) {
@@ -111,7 +111,7 @@ class TsModule {
         const ts = await this.getTs();
         const compilerOptions = {
             target: ts.ScriptTarget.ES2017,
-            module: ts.ModuleKind.ES2015,
+            module: ts.ModuleKind.ES2020,
             removeComments: false,
             newLine: ts.NewLineKind.LineFeed,
             preserveConstEnums: true,
@@ -120,7 +120,8 @@ class TsModule {
             inlineSources: true,
             declaration: false,
             emitDeclarationOnly: false,
-            noEmitOnError: false
+            noEmitOnError: false,
+            allowImportingTsExtensions: true
         };
 
         const host = new CustomTsHost(tsSources);
@@ -132,21 +133,32 @@ class TsModule {
         );
 
         const emitResult = program.emit();
-        if (emitResult.emitSkipped) {
-            const diagnostics = ts.getPreEmitDiagnostics(program);
-            console.error("Compilation errors:");
-            diagnostics.forEach(diagnostic => {
-                if (diagnostic.file) {
-                    const {line, character} = diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start);
-                    const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n");
-                    console.error(`(line ${line + 1}, col ${character + 1}): ${message}\n`);
+
+        const diagnostics = ts.getPreEmitDiagnostics(program);
+
+        diagnostics.forEach(diagnostic => {
+            if (diagnostic.file) {
+                const {line, character} = diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start);
+                const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n");
+
+                if(message.indexOf("lib' ") !== -1) return;
+
+                const errorText = `Error: ${message}\n    at <anonymous> (${diagnostic.file.path}:${line+1}:${character + 1})`
+                const error = new Error(message);
+                error.stack = errorText;
+
+                if (diagnostic.category === 1) {
+                    new Promise(()=>{
+                        throw error;
+                    })
                 } else {
-                    console.error(TsModule.tsNamespace.flattenDiagnosticMessageText(diagnostic.messageText, "\n"));
+                    console.debug(formatted);
                 }
-            });
-        } else {
-            console.info("Compilation successful!");
-        }
+
+            } else {
+                // console.error(TsModule.tsNamespace.flattenDiagnosticMessageText(diagnostic.messageText, "\n"));
+            }
+        });
 
         return host.jsOutput;
     }
