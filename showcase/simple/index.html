@@ -8,15 +8,9 @@
     </head>
     <body>
         <script type="module">
-            import {TsWebCompiler, installSW} from "https://friendlyted.github.io/ezTS/loader/front.js";
+            import {ezStartTS} from "https://friendlyted.github.io/ezTS/loader/front.js";
 
-            const sw = await installSW("./service-worker.js");
-
-            const jsSources = await new TsWebCompiler("./web-worker.js").compileTs("./ts/main_module.ts");
-            sw.active.postMessage(jsSources);
-            await new Promise(ok => setTimeout(ok(), 100));
-            const mainModule = await import("./ts/main_module.js");
-            mainModule.main();
+            ezStartTS({entryPointFile: "./ts/main_module.ts"})
         </script>
     </body>
 </html>

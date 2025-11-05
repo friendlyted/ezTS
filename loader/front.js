@@ -66,7 +66,7 @@ export async function installSW(url) {
             }
         }, 0);
         setTimeout(async () => {
-            try{
+            try {
                 await fetch("https://test.undefined/");
             } catch (ex) {
                 window.location.reload();
@@ -80,4 +80,26 @@ export async function installSW(url) {
 export async function importTS(main) {
     const mainUrl = new URL(main.replace(".ts", ".js"), new URL(window.location.href));
     return import(mainUrl);
+}
+
+
+export async function ezStartTS(options = {}) {
+    options = Object.assign({
+        serviceWorker: "./service-worker.js",
+        webWorker: "./web-worker.js",
+        entryPointFile: "./index.ts",
+        entryPointFunction: "main"
+    }, options);
+
+    const sw = await installSW(options.serviceWorker);
+
+    const jsSources = await new TsWebCompiler(options.webWorker)
+        .compileTs(options.entryPointFile);
+
+    sw.active.postMessage(jsSources);
+    await new Promise(ok => setTimeout(ok(), 30)); // let worker to update it's mock files
+
+    const jsUrl = new URL(options.entryPointFile.replace(".ts", ".js"), new URL(window.location.href));
+    const mainModule = await import(jsUrl);
+    mainModule[options.entryPointFunction]();
 }
