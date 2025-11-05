@@ -5,68 +5,68 @@ Lightweight JS library for TypeScripting without a node-js stack.
 ## Requirements
 
 - Browser with ECMAScript 6 (ES-2015) support.
+- Browser Web Workers (module mode) support.
+- Browser Service Workers support.
 - Access to https://cdn.jsdelivr.net/ or providing local copy of a TypeScript compiler.
 
-## Features
+## Details
 
-- ### EntryPoint
+The TS compiler process files in blocking mode.
+To prevent the page from freezing during this time, the compiler is placed in a separate thread — a JS web worker.
 
-You can directly use the `ezTS` class to load the necessary TypeScript modules, but there's a simpler way: define a
-global variable named `ezTS_main` (or `window["ezTS_main"]`), which specifies the name of the main TypeScript module file.
-This will automatically call its main() method.
-
-- ### Debugger
-
-TS sources are available for debugging, but they loaded so quickly that the browser debugger may not have time to set
-breakpoints, so a pause may be required before executing the TS code itself. To do this, you can set the 
-variable `ezTS_wait_for_debugger = true` (or `window["ezTS_wait_for_debugger"] = true`).
-
-- ### Zero Dependency
-
-All the code is in the project, except for the TypeScript compiler itself.
+The compiled JS files are "supplied" to the page so that it thinks it's receiving files from the server.
+This is accomplished using a JS service worker that intercepts fetch requests.
 
 ## Usage
 
-- ### EntryPoint using JS module
-```html
-<body>
-    <script type="text/javascript" src="https://friendlyted.github.io/ezTS/loader/ezTS.js"></script>
-    <script type="module">
-        window["ezTS_main"] = "./my_ts_module.ts";
-        window["ezTS_wait_for_debugger"] = true;
-    </script>
-</body>
+For browser security reasons, worker source files must be placed in the application path.
+This means that you need to create 2 JS files that will simply reference the library ones.
+
+web-worker.js:
+
+```javascript
+import {} from "https://friendlyted.github.io/ezTS/loader/web-worker.js";
 ```
 
-- ### EntryPoint using plain JS
-```html
-<body>
-    <script type="text/javascript" src="https://friendlyted.github.io/ezTS/loader/ezTS.js"></script>
-    <script type="text/javascript">
-        ezTS_main = "./my_ts_module.ts";
-        ezTS_wait_for_debugger = true;
-    </script>
-</body>
-```
-- ### Using explicitly ezTS class
-```html
-<body>
-    <script type="text/javascript" src="https://friendlyted.github.io/ezTS/loader/ezTS.js"></script>
-    <script type="text/javascript">
-        (async () => {
-            let [loadedTsModule] = await ezTS.import({
-                tsUrl: "https://cdn.jsdelivr.net/npm/typescript@5.9.3/lib/typescript.min.js",
-                modules: ["./my_ts_module.ts"]
-            });
-            
-            // maybe your debugger wants to take a rest
-            // await new Promise(resolve => setTimeout(resolve, 300));
-            loadedTsModule.myTsFunction();
-        })();
-    </script>
-</body>
+service-worker.js:
+
+```javascript
+importScripts("https://friendlyted.github.io/ezTS/loader/service-worker.js");
 ```
 
+In your page, add initial code:
+
+```html
+
+<script type="module">
+    import {ezStartTS} from "https://friendlyted.github.io/ezTS/loader/front.js";
+
+    ezStartTS({
+        serviceWorker: "./service-worker.js",
+        webWorker: "./web-worker.js",
+        entryPointFile: "./index.ts",
+        entryPointFunction: "main"
+    })
+</script>
+```
+
+Or, if you use classic JS:
+
+```javascript
+    <script type="text/javascript">
+        import("https://friendlyted.github.io/ezTS/loader/front.js")
+            .then(ez => ez.ezStartTS({
+                serviceWorker: "./service-worker.js",
+                webWorker: "./web-worker.js",
+                entryPointFile: "./index.ts",
+                entryPointFunction: "main"
+            }));
+    </script>
+```
+
+## Zero Dependency
+
+All the code is in the project, except for the TypeScript compiler itself.
 
 ## Showcase
 
