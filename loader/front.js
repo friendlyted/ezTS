@@ -39,7 +39,7 @@ export class TsWebCompiler {
     #worker;
 
     constructor() {
-        this.#worker = new WebWorkerFrontend("http://localhost:8000/loader/web-worker.js");
+        this.#worker = new WebWorkerFrontend("https://friendlyted.github.io/ezTS/loader/web-worker.js");
     }
 
     async compileTs(main) {
