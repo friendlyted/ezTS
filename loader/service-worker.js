@@ -1,4 +1,4 @@
-const mockFiles = new Map();
+const mockFiles = new Map([["https://test.undefined/", ""]]);
 self.addEventListener("fetch", event => {
     const url = event.request.url;
     if (mockFiles.has(url)) {

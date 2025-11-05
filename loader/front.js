@@ -38,7 +38,7 @@ class WebWorkerFrontend {
 export class TsWebCompiler {
     #worker;
 
-    constructor(workerUrl) {
+    constructor() {
         this.#worker = new WebWorkerFrontend("http://localhost:8000/loader/web-worker.js");
     }
 
@@ -48,18 +48,30 @@ export class TsWebCompiler {
 }
 
 export async function installSW(url) {
-    if (!navigator.serviceWorker.controller) {
-        console.warn("Hard Reloading detected! Browser disabled service workers for the current page, so we'll need to reload page as usual.")
-        // window.location.reload();
-    }
-
     const swReg = await navigator.serviceWorker.register(url);
 
     await new Promise(ok => {
-        swReg.addEventListener("active", () => ok());
+        let workerIsWorking = false;
+        const listener = () => {
+            if (swReg.active) {
+                ok();
+                swReg.removeEventListener("updatefound", listener);
+            }
+        }
+        swReg.addEventListener("updatefound", listener);
         setTimeout(() => {
-            if (swReg.active) ok()
+            if (swReg.active) {
+                ok();
+                workerIsWorking = true;
+            }
         }, 0);
+        setTimeout(async () => {
+            try{
+                await fetch("https://test.undefined/");
+            } catch (ex) {
+                window.location.reload();
+            }
+        }, 1000);
     })
 
     return swReg;
