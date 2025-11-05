@@ -58,17 +58,26 @@ export async function installSW(url) {
                 swReg.removeEventListener("updatefound", listener);
             }
         }
+        // listener if worker is not ready yet
         swReg.addEventListener("updatefound", listener);
         setTimeout(() => {
             if (swReg.active) {
+                // if worker was ready before
                 ok();
                 workerIsWorking = true;
             }
         }, 0);
         setTimeout(async () => {
+            // Weird case
+            // If you use a Hard Reload (ctrl+F5 or ctrl+shift+R), the browser ignores all service workers.
+            // We need to do a usual Soft Reload to make our Service Worker active on this page.
             try {
+                // It's quite difficult to determine whether the service worker is available via the API for all browsers.
+                // Therefore, we check for a deliberately unavailable address hardcoded into our service worker.
                 await fetch("https://test.undefined/");
             } catch (ex) {
+                // The site is unavailable: this means the request bypassed our service worker.
+                // Soft Reload the page.
                 window.location.reload();
             }
         }, 1000);
