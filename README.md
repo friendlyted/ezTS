@@ -37,7 +37,6 @@ importScripts("https://friendlyted.github.io/ezTS/loader/service-worker.js");
 In your page, add initial code:
 
 ```html
-
 <script type="module">
     import {ezStartTS} from "https://friendlyted.github.io/ezTS/loader/front.js";
 
@@ -52,16 +51,16 @@ In your page, add initial code:
 
 Or, if you use classic JS:
 
-```javascript
-    <script type="text/javascript">
-        import("https://friendlyted.github.io/ezTS/loader/front.js")
-            .then(ez => ez.ezStartTS({
-                serviceWorker: "./service-worker.js",
-                webWorker: "./web-worker.js",
-                entryPointFile: "./index.ts",
-                entryPointFunction: "main"
-            }));
-    </script>
+```html
+<script type="text/javascript">
+    import("https://friendlyted.github.io/ezTS/loader/front.js")
+        .then(ez => ez.ezStartTS({
+            serviceWorker: "./service-worker.js",
+            webWorker: "./web-worker.js",
+            entryPointFile: "./index.ts",
+            entryPointFunction: "main"
+        }));
+</script>
 ```
 
 ## Zero Dependency

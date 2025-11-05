@@ -64,19 +64,24 @@ class CustomTsHost {
 }
 
 class TsModule {
-    static DEFAULT_TS_URL = "https://cdn.jsdelivr.net/npm/typescript@5.9.3/lib/typescript.min.js";
     /** @type {ts} */
     static tsNamespace = null;
 
-    static async getTs() {
+    #tsUrl;
+
+    constructor(tsUrl) {
+        this.#tsUrl = tsUrl;
+    }
+
+    async getTs() {
         if (TsModule.tsNamespace !== null) {
             return TsModule.tsNamespace;
         }
-        return TsModule.tsNamespace = await TsModule.#prepareTypeScriptCompiler();
+        return TsModule.tsNamespace = await this.#prepareTypeScriptCompiler();
     }
 
-    static async createTsSource(url, src) {
-        const ts = await TsModule.getTs();
+    async createTsSource(url, src) {
+        const ts = await this.getTs();
         return ts.createSourceFile(
             url, src,
             ts.ScriptTarget.Latest,
@@ -84,12 +89,11 @@ class TsModule {
         );
     }
 
-
-    static async #prepareTypeScriptCompiler() {
+    async #prepareTypeScriptCompiler() {
         return new Promise((resolve) => {
             if (ts()) resolve(ts());
             else {
-                fetch(TsModule.DEFAULT_TS_URL)
+                fetch(this.#tsUrl)
                     .then(resp => resp.text())
                     .then(text => {
                         const gEval = eval; // I'm too lazy to make it properly for now
@@ -103,8 +107,8 @@ class TsModule {
         })
     }
 
-    static async compileSources(entryModuleUrl, tsSources) {
-        const ts = await TsModule.getTs();
+    async compileSources(entryModuleUrl, tsSources) {
+        const ts = await this.getTs();
         const compilerOptions = {
             target: ts.ScriptTarget.ES2017,
             module: ts.ModuleKind.ES2015,
@@ -150,10 +154,11 @@ class TsModule {
 
 export class ezTS {
 
-    static async compile(entryPointUrl) {
+    static async compile(entryPointUrl, tsUrl) {
         const tsSourceFiles = await ezTS.findRecursiveImports(entryPointUrl);
-        const tsSources = await ezTS.#createTsSources(tsSourceFiles);
-        const compilerOutput = await TsModule.compileSources(entryPointUrl, tsSources);
+        const tsModule = new TsModule(tsUrl);
+        const tsSources = await ezTS.#createTsSources(tsSourceFiles, tsModule);
+        const compilerOutput = await tsModule.compileSources(entryPointUrl, tsSources);
         const jsOutput = ezTS.#replaceJsExt(compilerOutput);
         return jsOutput;
     }
@@ -167,10 +172,10 @@ export class ezTS {
         return output;
     }
 
-    static async #createTsSources(sources) {
+    static async #createTsSources(sources, tsModule) {
         const result = {};
         for (let [k, v] of sources.entries()) {
-            result[k] = await TsModule.createTsSource(k, v);
+            result[k] = await tsModule.createTsSource(k, v);
         }
         return result;
     }

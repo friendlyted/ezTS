@@ -42,8 +42,8 @@ export class TsWebCompiler {
         this.#worker = new WebWorkerFrontend(workerUrl);
     }
 
-    async compileTs(main) {
-        return await this.#worker.call("COMPILE_TS", window.location.href, main);
+    async compileTs(main, tsUrl) {
+        return await this.#worker.call("COMPILE_TS", window.location.href, main, tsUrl);
     }
 }
 
@@ -85,6 +85,7 @@ export async function importTS(main) {
 
 export async function ezStartTS(options = {}) {
     options = Object.assign({
+        tsUrl: "https://cdn.jsdelivr.net/npm/typescript@5.9.3/lib/typescript.min.js",
         serviceWorker: "./service-worker.js",
         webWorker: "./web-worker.js",
         entryPointFile: "./index.ts",
@@ -94,7 +95,7 @@ export async function ezStartTS(options = {}) {
     const sw = await installSW(options.serviceWorker);
 
     const jsSources = await new TsWebCompiler(options.webWorker)
-        .compileTs(options.entryPointFile);
+        .compileTs(options.entryPointFile, options.tsUrl);
 
     sw.active.postMessage(jsSources);
     await new Promise(ok => setTimeout(ok(), 30)); // let worker to update it's mock files
