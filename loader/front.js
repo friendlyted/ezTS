@@ -92,26 +92,28 @@ export async function importTS(main) {
 }
 
 
-export async function ezStartTS(options = {}) {
+export async function ezTsImport(options = {}) {
     options = Object.assign({
         tsUrl: "https://cdn.jsdelivr.net/npm/typescript@5.9.3/lib/typescript.min.js",
         serviceWorker: "./service-worker.js",
         webWorker: "./web-worker.js",
-        entryPointFile: "./index.ts",
-        entryPointFunction: "main"
+        entryPointFiles: ["./index.ts"],
     }, options);
 
     const sw = await installSW(options.serviceWorker);
 
-    const jsSources = await new TsWebCompiler(options.webWorker)
-        .compileTs(options.entryPointFile, options.tsUrl);
+    const result = await Promise.all(options.entryPointFiles.map(async (url) => {
+        const jsSources = await new TsWebCompiler(options.webWorker)
+            .compileTs(url, options.tsUrl);
 
-    sw.active.postMessage(jsSources);
-    await new Promise(ok => setTimeout(ok(), 30)); // let worker to update it's mock files
+        sw.active.postMessage(jsSources);
+        await new Promise(ok => setTimeout(ok(), 30)); // let worker to update it's mock files
 
-    const compiledEntryPoint = options.entryPointFile.replace(/(.*)\/(.*).ts/, "$1/$$build/$2.js")
+        const compiledEntryPoint = url.replace(/(.*)\/(.*).ts/, "$1/$$build/$2.js")
 
-    const jsUrl = new URL(compiledEntryPoint, new URL(window.location.href));
-    const mainModule = await import(jsUrl);
-    mainModule[options.entryPointFunction]();
+        const jsUrl = new URL(compiledEntryPoint, new URL(window.location.href));
+        return await import(jsUrl);
+    }));
+
+    return result;
 }

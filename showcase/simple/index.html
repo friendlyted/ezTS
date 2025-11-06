@@ -8,9 +8,10 @@
     </head>
     <body>
         <script type="module">
-            import {ezStartTS} from "https://friendlyted.github.io/ezTS/loader/front.js";
+            import {ezTsImport} from "https://friendlyted.github.io/ezTS/loader/front.js";
 
-            ezStartTS({entryPointFile: "./ts/main_module.ts"})
+            const [mainModule] = await ezTsImport({entryPointFiles: ["./ts/main_module.ts"]})
+            mainModule.main();
         </script>
     </body>
 </html>
