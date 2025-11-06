@@ -270,6 +270,7 @@ class TsModule {
             removeComments: false,
             newLine: ts.NewLineKind.LineFeed,
             preserveConstEnums: true,
+            sourceRoot: entryModuleUrl.replace(/\/[^\/]+$/, '/'),
             sourceMap: true,
             inlineSourceMap: true,
             inlineSources: true,
