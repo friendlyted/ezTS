@@ -109,9 +109,7 @@ export async function ezTsImport(options = {}) {
         sw.active.postMessage(jsSources);
         await new Promise(ok => setTimeout(ok(), 30)); // let worker to update it's mock files
 
-        const compiledEntryPoint = url.replace(/(.*)\/(.*).ts/, "$1/$$build/$2.js")
-
-        const jsUrl = new URL(compiledEntryPoint, new URL(window.location.href));
+        const jsUrl = new URL(url.replace(".ts", ".js"), new URL(window.location.href));
         return await import(jsUrl);
     }));
 

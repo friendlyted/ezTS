@@ -136,7 +136,7 @@ class CustomTsHost {
 
     getSourceFile(url) {
         try {
-            if (!this.tsSourceFiles[url]) {
+            if (!this.tsSourceFiles[url]){
                 this.#fetchLib(url);
             }
             return this.tsSourceFiles[url];
@@ -332,21 +332,11 @@ export class ezTS {
         return jsOutput;
     }
 
-    /**
-     * @param filesMap {Map<string, string>}
-     * @returns {Map<string, string>}
-     */
     static #replaceJsExt(filesMap) {
         const output = new Map();
         filesMap.forEach((src, name) => {
-            const fixedSrc = src
-                .replaceAll(
-                    /((?:import|export).*['"](?:.*\/)?)(.*)\.ts(['"])/g,
-                    "$1$$build/$2.js$3"
-                )
-                .replaceAll(/(['"])(\.\/)?\$build\//g, "$1$2");
-            const newName = name.replace(/(.*)\/(.*)/, "$1/$$build/$2");
-            output.set(newName, fixedSrc);
+            const fixed = src.replaceAll(/((?:import|export).*)\.ts(['"])/g, "$1.js$2");
+            output.set(name, fixed);
         });
         return output;
     }
