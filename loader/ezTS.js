@@ -123,6 +123,209 @@ function ts() {
     return global()["ts"];
 }
 
+class Hash {
+    static MIN_INT_VALUE = -(2 ^ 31);
+    static MAX_INT_VALUE = (2 ^ 31) - 1;
+    static NULL_VALUE = Hash.MIN_INT_VALUE + 1;
+    static UNDEFINED_VALUE = Hash.MIN_INT_VALUE + 2;
+    static FUNCTION_VALUE = Hash.MIN_INT_VALUE + 3;
+    static OTHER_VALUE = Hash.MIN_INT_VALUE + 3;
+
+    static BASE_MAGIC = 2166136261;
+    static BASE_MAGIC_N = BigInt(Hash.BASE_MAGIC);
+    static STEP_MAGIC = 16777619;
+    static STEP_MAGIC_N = BigInt(Hash.STEP_MAGIC);
+
+    static BIGINT_32BIT_MASK = 0xFFFFFFFFn;
+
+    static hash(source) {
+        return Hash.fnv32a(source);
+    }
+
+    static fnv32a(value) {
+        if (value === null) return Hash.NULL_VALUE;
+        if (value === undefined) return Hash.UNDEFINED_VALUE;
+
+        const type = typeof value;
+        if (type === "function") {
+            return Hash.FUNCTION_VALUE;
+        }
+        if (type === "boolean") {
+            return value ? 1 : 0;
+        }
+        if (type === "symbol") {
+            return Hash.fnv32a(value.toString());
+        }
+        if (type === "bigint") {
+            let h = Hash.BASE_MAGIC_N;
+            let tmpValue = value;
+            while (tmpValue > 0n) {
+                const part = value & Hash.BIGINT_32BIT_MASK;
+                h = (h ^ part) * Hash.STEP_MAGIC_N;
+                tmpValue >>= 32n;
+            }
+            return Number(h >>> 0n);
+        }
+
+        let h = Hash.BASE_MAGIC;
+        if (type === "number" || type === "string") {
+            let bytes;
+
+            if (Number.isInteger(value)) {
+                if (value >= Hash.MIN_INT_VALUE && value <= Hash.MAX_INT_VALUE) {
+                    return value;
+                }
+                bytes = new Uint8Array(new Uint32Array([value]).buffer);
+            } else if (type === "string") {
+                bytes = new TextEncoder().encode(value);
+            } else {
+                bytes = new Uint8Array(new Float64Array([value]).buffer);
+            }
+            for (let i = 0; i < bytes.length; i++) {
+                h = (h ^ bytes[i]) * Hash.STEP_MAGIC;
+            }
+        } else if (type === "object") {
+            for (const key of Object.getOwnPropertySymbols(value)) {
+                h = (h ^ Hash.fnv32a(key)) * Hash.STEP_MAGIC;
+                const val = value[key];
+                h = (h ^ Hash.fnv32a(val)) * Hash.STEP_MAGIC;
+            }
+            for (const key of Object.getOwnPropertyNames(value)) {
+                h = (h ^ Hash.fnv32a(key)) * Hash.STEP_MAGIC;
+                const val = value[key];
+                h = (h ^ Hash.fnv32a(val)) * Hash.STEP_MAGIC;
+            }
+        } else {
+            return Hash.OTHER_VALUE;
+        }
+        return h >>> 0; // Преобразуем в беззнаковое 32-битное число
+    }
+}
+
+class TsCache {
+    static DB_NAME = "tsCache";
+    static DB_VERSION = 1;
+    static STORE_NAME = "cacheStore";
+    static DATE_INDEX = "date_idx";
+
+    #disabled = false;
+    /** @type IDBDatabase */
+    #database;
+
+    constructor() {
+        this.#disabled = typeof indexedDB === "undefined";
+    }
+
+    async #getDB() {
+        if (!this.#database) {
+            this.#database = await TsCache.#openDB(TsCache.DB_NAME, TsCache.DB_VERSION);
+            await this.clearExpiredStorage();
+        }
+        return this.#database;
+    }
+
+    /**
+     * @returns {Promise<IDBDatabase>}
+     */
+    static async #openDB(name, version) {
+        return new Promise((ok, err) => {
+            const request = indexedDB.open(name, version);
+
+            request.onsuccess = (event) => {
+                ok(event.target.result);
+            };
+
+            request.onerror = (event) => {
+                err(event.target.error);
+            };
+
+            request.onupgradeneeded = function (event) {
+                const db = event.target.result;
+                const objectStore = db.createObjectStore(TsCache.STORE_NAME, {keyPath: "key"});
+
+                objectStore.createIndex(TsCache.DATE_INDEX, "cacheDate");
+            };
+        });
+    }
+
+    /** @arg request {IDBRequest} */
+    static async #select(request) {
+        return new Promise((ok, err) => {
+            request.onsuccess = (event) => {
+                const data = event.target.result;
+                if (data) {
+                    ok(data);
+                } else {
+                    ok(undefined);
+                }
+            }
+
+            request.onerror = (event) => {
+                err(new Error(event.target.error));
+            }
+        })
+    }
+
+    /** @arg request {IDBRequest} */
+    static async #update(request) {
+        return new Promise((ok, err) => {
+            request.onsuccess = () => {
+                ok()
+            }
+            request.onerror = (event) => {
+                err(new Error(event.target.error));
+            }
+        })
+    }
+
+    async get(key, asyncValueProvider) {
+        const db = await this.#getDB();
+
+        const tx = db.transaction([TsCache.STORE_NAME], "readonly");
+        const store = tx.objectStore(TsCache.STORE_NAME);
+        const cached = await TsCache.#select(store.get(key));
+
+        if (cached !== undefined) {
+            return cached.value;
+        }
+
+        const value = await asyncValueProvider();
+        if (value === undefined) return;
+
+        const cacheDate = new Date();
+
+        // первая tx могла закрыться: кто знает что там в asyncValueProvider?
+        const tx2 = db.transaction([TsCache.STORE_NAME], "readwrite");
+        const store2 = tx2.objectStore(TsCache.STORE_NAME);
+        await TsCache.#update(store2.add({key, cacheDate, value}));
+
+        return value;
+    }
+
+    /**
+     * Removes from cache all the expired entries
+     */
+    async clearExpiredStorage() {
+        const db = await this.#getDB();
+        const tx = db.transaction([TsCache.STORE_NAME], "readwrite");
+        const store = tx.objectStore(TsCache.STORE_NAME);
+
+        const idx = store.index(TsCache.DATE_INDEX);
+
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() - 7);
+        const range = IDBKeyRange.upperBound(endDate);
+
+        /** @type number[] */
+        const expiredKeys = await TsCache.#select(idx.getAllKeys(range));
+
+        await Promise.all(expiredKeys.map(key =>
+            TsCache.#update(store.delete(key))
+        ))
+    }
+
+}
+
 // noinspection DuplicatedCode
 class CustomTsHost {
     tsUrl;
@@ -136,7 +339,7 @@ class CustomTsHost {
 
     getSourceFile(url) {
         try {
-            if (!this.tsSourceFiles[url]){
+            if (!this.tsSourceFiles[url]) {
                 this.#fetchLib(url);
             }
             return this.tsSourceFiles[url];
@@ -325,11 +528,15 @@ export class ezTS {
 
     static async compile(entryPointUrl, tsUrl) {
         const tsSourceFiles = await ezTS.findRecursiveImports(entryPointUrl);
-        const tsModule = new TsModule(tsUrl);
-        const tsSources = await ezTS.#createTsSources(tsSourceFiles, tsModule);
-        const compilerOutput = await tsModule.compileSources(entryPointUrl, tsSources);
-        const jsOutput = ezTS.#replaceJsExt(compilerOutput);
-        return jsOutput;
+
+        const hash = Hash.hash(Array.from(tsSourceFiles.entries()));
+        return await new TsCache().get(hash, async () => {
+            const tsModule = new TsModule(tsUrl);
+            const tsSources = await ezTS.#createTsSources(tsSourceFiles, tsModule);
+            const compilerOutput = await tsModule.compileSources(entryPointUrl, tsSources);
+            const jsOutput = ezTS.#replaceJsExt(compilerOutput);
+            return jsOutput;
+        })
     }
 
     static #replaceJsExt(filesMap) {
