@@ -37,13 +37,17 @@ class WebWorkerFrontend {
 
 export class TsWebCompiler {
     #worker;
+    #tsUrl;
+    #prodMode;
 
-    constructor(workerUrl) {
+    constructor(workerUrl, tsUrl, prodMode) {
+        this.#prodMode = prodMode;
+        this.#tsUrl = tsUrl;
         this.#worker = new WebWorkerFrontend(workerUrl);
     }
 
-    async compileTs(main, tsUrl) {
-        return await this.#worker.call("COMPILE_TS", window.location.href, main, tsUrl);
+    async compileTs(main) {
+        return await this.#worker.call("COMPILE_TS", window.location.href, main, this.#tsUrl, this.#prodMode);
     }
 }
 
@@ -98,13 +102,14 @@ export async function ezTsImport(options = {}) {
         serviceWorker: "./service-worker.js",
         webWorker: "./web-worker.js",
         entryPointFiles: ["./index.ts"],
+        prodMode: false
     }, options);
 
     const sw = await installSW(options.serviceWorker);
 
     const result = await Promise.all(options.entryPointFiles.map(async (url) => {
-        const jsSources = await new TsWebCompiler(options.webWorker)
-            .compileTs(url, options.tsUrl);
+        const jsSources = await new TsWebCompiler(options.webWorker, options.tsUrl, options.prodMode)
+            .compileTs(url);
 
         sw.active.postMessage(jsSources);
         await new Promise(ok => setTimeout(ok(), 30)); // let worker to update it's mock files

@@ -424,9 +424,11 @@ class TsModule {
     /** @type {ts} */
     static tsNamespace = null;
 
+    #prodMode;
     #tsUrl;
 
-    constructor(tsUrl) {
+    constructor(tsUrl, prodMode) {
+        this.#prodMode = prodMode;
         this.#tsUrl = tsUrl;
     }
 
@@ -482,7 +484,7 @@ class TsModule {
             noEmitOnError: false,
             allowImportingTsExtensions: true,
             traceResolution: true,
-            lib: ["lib.es2020", "lib.dom"],
+            lib: this.#prodMode ? [] : ["lib.es2020", "lib.dom"],
             typeRoots: ["https://cdn.jsdelivr.net/npm/typescript@5.9.3/lib/"]
         };
 
@@ -496,29 +498,31 @@ class TsModule {
 
         const emitResult = program.emit();
 
-        const diagnostics = ts.getPreEmitDiagnostics(program);
+        if (!this.#prodMode) {
+            const diagnostics = ts.getPreEmitDiagnostics(program);
 
-        diagnostics.forEach(diagnostic => {
-            if (diagnostic.file) {
-                const {line, character} = diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start);
-                const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n");
+            diagnostics.forEach(diagnostic => {
+                if (diagnostic.file) {
+                    const {line, character} = diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start);
+                    const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, "\n");
 
-                const errorText = `Error: ${message}\n    at <anonymous> (${diagnostic.file.path}:${line + 1}:${character + 1})`
-                const error = new Error(message);
-                error.stack = errorText;
+                    const errorText = `Error: ${message}\n    at <anonymous> (${diagnostic.file.path}:${line + 1}:${character + 1})`
+                    const error = new Error(message);
+                    error.stack = errorText;
 
-                if (diagnostic.category === 1) {
-                    new Promise(() => {
-                        throw error;
-                    })
+                    if (diagnostic.category === 1) {
+                        new Promise(() => {
+                            throw error;
+                        })
+                    } else {
+                        console.debug(formatted);
+                    }
+
                 } else {
-                    console.debug(formatted);
+                    // console.error(TsModule.tsNamespace.flattenDiagnosticMessageText(diagnostic.messageText, "\n"));
                 }
-
-            } else {
-                // console.error(TsModule.tsNamespace.flattenDiagnosticMessageText(diagnostic.messageText, "\n"));
-            }
-        });
+            });
+        }
 
         return host.jsOutput;
     }
@@ -526,12 +530,12 @@ class TsModule {
 
 export class ezTS {
 
-    static async compile(entryPointUrl, tsUrl) {
+    static async compile(entryPointUrl, tsUrl, prodMode) {
         const tsSourceFiles = await ezTS.findRecursiveImports(entryPointUrl);
 
         const hash = Hash.hash(Array.from(tsSourceFiles.entries()));
         return await new TsCache().get(hash, async () => {
-            const tsModule = new TsModule(tsUrl);
+            const tsModule = new TsModule(tsUrl, prodMode);
             const tsSources = await ezTS.#createTsSources(tsSourceFiles, tsModule);
             const compilerOutput = await tsModule.compileSources(entryPointUrl, tsSources);
             const jsOutput = ezTS.#replaceJsExt(compilerOutput);

@@ -67,9 +67,9 @@ new WebWorkerBackend(self)
     .add("COMPILE_TS", compileTs)
 
 
-async function compileTs(baseUrl, entryPointUrl, tsUrl) {
+async function compileTs(baseUrl, entryPointUrl, tsUrl, prodMode) {
     const entryPointAbsoluteUrl = ezTS.resolveUrl(baseUrl, entryPointUrl);
-    const sources = await ezTS.compile(entryPointAbsoluteUrl, tsUrl);
+    const sources = await ezTS.compile(entryPointAbsoluteUrl, tsUrl, prodMode);
 
     return sources;
 }
