@@ -579,9 +579,9 @@ export class ezTS {
 
         const fileImports = this.findImportsInSource(url, src);
 
-        for (let newImport of fileImports) {
-            await ezTS.findRecursiveImports(newImport, importsCollector);
-        }
+        await Promise.all(fileImports.map(newImport=>{
+            return ezTS.findRecursiveImports(newImport, importsCollector);
+        }))
 
         return importsCollector;
     }
@@ -595,7 +595,7 @@ export class ezTS {
         const dynamicImports = src.matchAll(/(\s+import\s*\(\s*["'])([^"']+\.ts)(["']\s*\))/gs);
 
         /** @type {RegExpExecArray[]} */
-        const allImports = [].concat([...staticImports]).concat([...dynamicImports]);
+        const allImports = [...staticImports, ...dynamicImports];
         const result = allImports
             .map(i => i[2])
             .map(i => ezTS.resolveUrl(url, i));
