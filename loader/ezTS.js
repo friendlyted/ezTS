@@ -579,7 +579,7 @@ export class ezTS {
 
         const fileImports = this.findImportsInSource(url, src);
 
-        await Promise.all(fileImports.map(newImport=>{
+        await Promise.all(fileImports.map(newImport => {
             return ezTS.findRecursiveImports(newImport, importsCollector);
         }))
 
@@ -592,7 +592,7 @@ export class ezTS {
      */
     static findImportsInSource(url, src) {
         const staticImports = src.matchAll(/^(^\s*(?:import|export).*from\s+["'])([^"']+\.ts)(["'])/gm);
-        const dynamicImports = src.matchAll(/(\s+import\s*\(\s*["'])([^"']+\.ts)(["']\s*\))/gs);
+        const dynamicImports = src.matchAll(/(\s*import\s*\(\s*["'])([^"']+\.ts)(["']\s*\))/gs);
 
         /** @type {RegExpExecArray[]} */
         const allImports = [...staticImports, ...dynamicImports];
