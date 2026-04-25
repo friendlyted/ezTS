@@ -11,7 +11,7 @@
             import {ezTsImport} from "https://friendlyted.github.io/ezTS/loader/front.js";
 
             const [mainModule] = await ezTsImport({
-                entryPointFiles: ["./ts/main_module.ts"],
+                modules: ["./ts/main_module.ts"],
                 prodMode: false // "true" disables compiler errors log, removes lib.*.d.ts from build
             })
             mainModule.main();

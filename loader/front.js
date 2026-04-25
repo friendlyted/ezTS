@@ -101,13 +101,13 @@ export async function ezTsImport(options = {}) {
         tsUrl: "https://cdn.jsdelivr.net/npm/typescript@5.9.3/lib/typescript.min.js",
         serviceWorker: "./service-worker.js",
         webWorker: "./web-worker.js",
-        entryPointFiles: ["./index.ts"],
+        modules: ["./index.ts"],
         prodMode: false
     }, options);
 
     const sw = await installSW(options.serviceWorker);
 
-    const result = await Promise.all(options.entryPointFiles.map(async (url) => {
+    const result = await Promise.all(options.modules.map(async (url) => {
         const jsSources = await new TsWebCompiler(options.webWorker, options.tsUrl, options.prodMode)
             .compileTs(url);
 
