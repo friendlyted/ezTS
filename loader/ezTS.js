@@ -469,7 +469,7 @@ class TsModule {
     async compileSources(entryModuleUrl, tsSources) {
         const ts = await this.getTs();
         const compilerOptions = {
-            target: ts.ScriptTarget.ES2020,
+            target: ts.ScriptTarget.ES2024,
             module: ts.ModuleKind.ES2020,
             moduleResolution: ts.ModuleResolutionKind.Classic,
             removeComments: false,
@@ -483,7 +483,7 @@ class TsModule {
             noEmitOnError: false,
             allowImportingTsExtensions: true,
             traceResolution: true,
-            lib: this.#prodMode ? [] : ["lib.es2020", "lib.dom"],
+            lib: this.#prodMode ? [] : ["lib.es2024", "lib.dom"],
             typeRoots: ["https://cdn.jsdelivr.net/npm/typescript@5.9.3/lib/"]
         };
 
