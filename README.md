@@ -40,12 +40,12 @@ In your page, add initial code:
 <script type="module">
     import {ezStartTS} from "https://friendlyted.github.io/ezTS/loader/front.js";
 
-    ezStartTS({
+    const [indexTsModule] = await ezStartTS({
         serviceWorker: "./service-worker.js",
         webWorker: "./web-worker.js",
-        entryPointFile: "./index.ts",
-        entryPointFunction: "main"
+        modules: ["./index.ts"]
     })
+    // TODO your code
 </script>
 ```
 
@@ -57,9 +57,12 @@ Or, if you use classic JS:
         .then(ez => ez.ezStartTS({
             serviceWorker: "./service-worker.js",
             webWorker: "./web-worker.js",
-            entryPointFile: "./index.ts",
-            entryPointFunction: "main"
-        }));
+            modules: ["./index.ts"]
+        }))
+        .then(([indexTsModule])=>{
+            // TODO your code
+        })
+    ;
 </script>
 ```
 
